@@ -8,7 +8,7 @@ import io
 # 1. API KEY CONFIGURATION
 # =========================================================================
 # The API key is embedded directly into this file for simplification, as requested.
-API_KEY = "AIzaSyBsjs1zDndKxZ877HIbpcbd34CnC9wc8PE" 
+API_KEY = "AIzaSyAD5Yi_m8Ru7U9V0GKTegwIMngMPhm4nTA" 
 
 # --- Configuration ---
 LEADS_PER_PAGE = 30
