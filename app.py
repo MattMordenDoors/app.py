@@ -73,15 +73,39 @@ def run_prospecting_query(user_query):
         st.error(f"An unexpected error occurred: {e}")
         return None
 
-# --- Data Processing ---
+# --- Data Processing (FIXED TO HANDLE INTRO TEXT) ---
 def parse_markdown_table(markdown_text):
-    """Converts the raw markdown table output into a pandas DataFrame."""
+    """Converts the raw markdown table output into a pandas DataFrame, 
+    made robust to handle pre-table text."""
     if not markdown_text:
         return pd.DataFrame()
         
     try:
-        data_io = io.StringIO(markdown_text)
-        df = pd.read_csv(data_io, sep='|', skiprows=[2], skipinitialspace=True)
+        # 1. Clean up the text by removing introductory lines
+        lines = markdown_text.strip().split('\n')
+        
+        # Find the line that marks the start of the table header (usually starts with '|')
+        table_start_index = -1
+        for i, line in enumerate(lines):
+            if line.strip().startswith('|'):
+                # Check if the next line is the separator line (e.g., |---|---|)
+                if i + 1 < len(lines) and all(c in '-| ' for c in lines[i+1].strip()):
+                    table_start_index = i
+                    break
+        
+        if table_start_index == -1:
+            st.warning("Could not find a valid Markdown table structure in the response.")
+            return pd.DataFrame()
+
+        # Join the relevant lines (from header onwards) back into a string
+        table_content = "\n".join(lines[table_start_index:])
+        data_io = io.StringIO(table_content)
+        
+        # 2. Use the standard pandas parsing method
+        # Skip the separator line (index 1 relative to table_start_index)
+        df = pd.read_csv(data_io, sep='|', skiprows=[1], skipinitialspace=True)
+        
+        # 3. Final cleaning (similar to before)
         df = df.dropna(axis=1, how='all')
         df.columns = [col.strip() for col in df.columns]
         
@@ -89,15 +113,17 @@ def parse_markdown_table(markdown_text):
             if df[col].dtype == 'object':
                 df[col] = df[col].str.strip()
         
+        # Remove empty columns at the start/end if they exist
         if df.columns[0] == df.columns[-1] and df.columns[0] == '':
              df = df.iloc[:, 1:-1]
         
+        # Standardize column names
         df.columns = [col.replace(' ', '_').replace('.', '').replace('-', '') for col in df.columns]
 
         return df
     
     except Exception as e:
-        st.warning(f"Could not parse the markdown table. Received text was: \n{markdown_text[:500]}...\nError: {e}")
+        st.warning(f"Failed during robust parsing. Received text started with: \n{markdown_text[:500]}...\nError: {e}")
         return pd.DataFrame()
 
 
